@@ -1,191 +1,161 @@
-export type RiskLevel = "LOW" | "MODERATE" | "HIGH" | "CRITICAL";
+// ============================================================
+// SENTRY AI — Type Definitions (Person 4)
+// All types mirror Person 1's final analysis JSON contract
+// ============================================================
 
-export interface EventDetails {
-  id: string;
+export interface EventData {
   type: string;
   name: string;
-  category: string;
   severity: number;
   location: string;
-  headline: string;
-  summary: string;
-  timestamp: string;
-  affected_sector: string;
-  status: "ACTIVE_TRACKING" | "MONITORING" | "RESOLVED";
+  description?: string;
 }
 
-export interface WeatherIntelligence {
+export interface WeatherData {
+  event_type: string;
+  severity: number;
   severity_score: number;
-  max_wind_speed_mph: number;
-  central_pressure_mb: number;
-  storm_surge_ft: number;
-  projected_landfall: string;
-  offshore_platforms_threatened: number;
-  status: string;
-  source: string;
-}
-
-export interface NewsIntelligence {
-  sentiment: number;
-  sentiment_label: "BEARISH" | "NEUTRAL" | "BULLISH";
-  article_count: number;
-  top_headlines: {
-    title: string;
-    source: string;
-    time_ago: string;
-    sentiment: number;
-  }[];
-  urgency: "HIGH" | "MEDIUM" | "LOW";
-}
-
-export interface HistoricalIntelligence {
-  similar_events: number;
-  median_impact: number;
-  mean_impact: number;
-  max_drawdown: number;
-  recovery_days_median: number;
-  key_analogs: {
-    name: string;
-    year: number;
-    category: number;
-    impact_pct: number;
-    recovery_days: number;
-  }[];
-}
-
-export interface MarketIntelligence {
-  energy_sector_movement: number;
-  crude_oil_movement: number;
-  sp500_movement: number;
-  sector_performance: Record<string, number>;
-  vix_level: number;
-  vix_change_pct: number;
-}
-
-export interface ScenarioPoint {
-  id: "mild" | "base" | "severe";
-  name: string;
-  impact_pct: number;
-  dollar_loss: number;
-  projected_value: number;
-  description: string;
-  probability: number;
-}
-
-export interface AssetHolding {
-  ticker: string;
-  name: string;
-  sector: string;
-  weight_pct: number;
-  current_value: number;
-  current_price: number;
-  estimated_impact_pct: number;
-  estimated_dollar_impact: number;
-  risk_contribution_pct: number;
-  risk_tier: "LOW" | "MODERATE" | "HIGH" | "CRITICAL";
-}
-
-export interface SectorExposure {
-  sector: string;
-  allocation_pct: number;
-  value: number;
-  is_affected: boolean;
-}
-
-export interface AgentTraceStep {
-  id: string;
-  agent_name: string;
-  role: string;
-  status: "COMPLETED" | "RUNNING" | "WAITING" | "ERROR";
-  metric_label: string;
-  metric_value: string;
-  latency_ms: number;
-  timestamp: string;
-  summary: string;
-}
-
-export interface EvidenceSource {
-  id: string;
-  type: "HISTORICAL" | "NEWS" | "WEATHER" | "MARKET";
-  title: string;
-  source: string;
-  timestamp: string;
-  signal: string;
-  relevance_score: number;
-}
-
-export interface RiskAnalysis {
-  risk_score: number; // 0 - 100
-  risk_level: RiskLevel;
-  confidence: number; // 0.0 - 1.0
-  portfolio_impact: number; // fractional return e.g. -0.0284
-  estimated_dollar_loss: number;
-  portfolio_total_value: number;
-  energy_exposure_pct: number;
-  technology_exposure_pct: number;
-  audit_factors: {
-    factor: string;
-    weight: string;
-    value: string;
-    direction: "NEGATIVE" | "NEUTRAL" | "POSITIVE";
-    detail: string;
-  }[];
-}
-
-export interface RecommendedStrategy {
-  type: "HEDGE" | "REDUCE_EXPOSURE" | "HOLD" | "REBALANCE";
-  title: string;
-  urgency: "HIGH" | "MEDIUM" | "LOW";
-  reason: string;
-  hedging_vehicles: string[];
-  recommended_allocation_pct: number;
-}
-
-export interface TerminalAnalysisData {
-  event: EventDetails;
-  weather: WeatherIntelligence;
-  news: NewsIntelligence;
-  market: MarketIntelligence;
-  historical: HistoricalIntelligence;
-  risk: RiskAnalysis;
-  scenarios: {
-    mild: number;
-    base: number;
-    severe: number;
-    breakdown: ScenarioPoint[];
-  };
-  portfolio: {
-    total_value: number;
-    sectors: SectorExposure[];
-    top_risk_contributors: AssetHolding[];
-  };
-  strategy: RecommendedStrategy;
-  agent_trace: AgentTraceStep[];
-  evidence: EvidenceSource[];
-  meta: {
-    model_version: string;
-    engine_latency_ms: number;
-    is_demo: boolean;
-    computed_at: string;
-    pipeline_status: "NOMINAL" | "DEGRADED" | "OFFLINE";
-  };
-}
-
-export type AnalysisState = "idle" | "analyzing" | "complete" | "error";
-
-export interface ExecutionStep {
-  id: string;
-  label: string;
-  agent: string;
-  status: "pending" | "running" | "completed";
-  duration_ms?: number;
+  wind_speed?: number;
+  affected_regions: string[];
+  affected_sectors: string[];
+  forecast_duration_days?: number;
+  coordinates?: { lat: number; lon: number };
   timestamp?: string;
 }
 
+export interface NewsArticle {
+  id: string;
+  title: string;
+  source: string;
+  url?: string;
+  published_at: string;
+  sentiment: number;
+  sentiment_label: "positive" | "negative" | "neutral";
+  tickers?: string[];
+  sector?: string;
+  text?: string;
+}
+
+export interface NewsData {
+  articles: NewsArticle[];
+  overall_sentiment: number;
+  article_count: number;
+  sentiment_label: "positive" | "negative" | "neutral";
+}
+
+export interface AssetMarket {
+  ticker: string;
+  name: string;
+  price: number;
+  change_1d: number;
+  change_7d?: number;
+  volume?: number;
+  sector: string;
+}
+
+export interface MarketData {
+  assets: AssetMarket[];
+  sector_performance: Record<string, number>;
+  timestamp?: string;
+}
+
+export interface HistoricalMatch {
+  event_id: string;
+  event_name: string;
+  similarity: number;
+  date: string;
+  location?: string;
+  severity?: number;
+  sector_impact: number;
+  description?: string;
+}
+
+export interface HistoricalData {
+  matches: HistoricalMatch[];
+  count: number;
+  aggregate_impact: {
+    mean: number;
+    median: number;
+    worst: number;
+    best: number;
+  };
+}
+
+export interface MacroIndicator {
+  indicator: string;
+  value: number;
+  previous: number;
+  change: number;
+  unit?: string;
+  timestamp?: string;
+}
+
+export interface MacroData {
+  indicators: MacroIndicator[];
+}
+
+export interface AssetRisk {
+  ticker: string;
+  name: string;
+  weight: number;
+  scenario_impact: number;
+  portfolio_contribution: number;
+  sector: string;
+}
+
+export interface ScenarioData {
+  mild: number;
+  base: number;
+  severe: number;
+  extreme?: number;
+}
+
+export interface RiskReport {
+  risk_score: number;
+  risk_level: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  confidence: number;
+  portfolio_impact: number;
+  scenarios: ScenarioData;
+  asset_risk: AssetRisk[];
+  key_risk_drivers: string[];
+  sector_exposure: Record<string, number>;
+}
+
+export interface StrategyData {
+  type: "HOLD" | "HEDGE" | "REBALANCE" | "REDUCE" | "EXIT";
+  reason: string;
+  actions: string[];
+  evidence_summary: string[];
+  urgency: "LOW" | "MEDIUM" | "HIGH";
+}
+
+export interface AgentStep {
+  agent: string;
+  status: "pending" | "running" | "completed" | "error";
+  input?: Record<string, unknown>;
+  output?: Record<string, unknown>;
+  latency_ms?: number;
+  sources?: string[];
+  timestamp?: string;
+}
+
+export interface AgentTrace {
+  steps: AgentStep[];
+  total_duration_ms?: number;
+}
+
 export interface AnalysisResponse {
-  success: boolean;
   query: string;
-  data?: TerminalAnalysisData;
-  error?: string;
-  execution_steps?: ExecutionStep[];
+  portfolio_id?: string;
+  event: EventData;
+  weather: WeatherData;
+  news: NewsData;
+  market: MarketData;
+  historical: HistoricalData;
+  macro?: MacroData;
+  risk: RiskReport;
+  scenarios: ScenarioData;
+  strategy: StrategyData;
+  agent_trace: AgentTrace;
+  timestamp: string;
 }

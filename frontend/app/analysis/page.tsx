@@ -1,223 +1,291 @@
 "use client";
+import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { streamAnalysis, Mode } from "@/lib/api";
+import { AnalysisResponse } from "@/types/analysis";
+import Navbar from "@/components/Navbar";
 
-import React, { useState } from "react";
-import { TerminalNav } from "@/components/TerminalNav";
-import { EventHeader } from "@/components/EventHeader";
-import { IntelligenceStrip } from "@/components/IntelligenceStrip";
-import { RiskOverview } from "@/components/RiskOverview";
-import { ScenarioChart } from "@/components/ScenarioChart";
-import { PortfolioExposure } from "@/components/PortfolioExposure";
-import { AgentTrace } from "@/components/AgentTrace";
-import { EvidencePreview } from "@/components/EvidencePreview";
-import { TerminalFooter } from "@/components/TerminalFooter";
-import { AnalysisConsole } from "@/components/AnalysisConsole";
-import { ExecutionProgress } from "@/components/ExecutionProgress";
-import { QueryStatusBar } from "@/components/QueryStatusBar";
-import {
-  AnalysisState,
-  ExecutionStep,
-  TerminalAnalysisData,
-} from "@/types/analysis";
-import { analyzeQuery, DEFAULT_EXECUTION_STEPS } from "@/lib/api";
-import { MOCK_ANALYSIS_DATA } from "@/lib/mock-analysis";
+type MessageRole = "user" | "assistant" | "system";
 
-export default function LiveAnalysisPage() {
-  const [analysisState, setAnalysisState] = useState<AnalysisState>("idle");
-  const [activeQuery, setActiveQuery] = useState(
-    "How will a Category 4 hurricane in the Gulf of Mexico affect my energy holdings?"
-  );
-  const [executionSteps, setExecutionSteps] = useState<ExecutionStep[]>(
-    DEFAULT_EXECUTION_STEPS.map((s) => ({ ...s }))
-  );
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [analysisResult, setAnalysisResult] =
-    useState<TerminalAnalysisData>(MOCK_ANALYSIS_DATA);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+interface AgentStepMsg {
+  label: string;
+  status: "pending" | "running" | "done";
+}
 
-  const handleRunAnalysis = async (queryText: string) => {
-    setActiveQuery(queryText);
-    setAnalysisState("analyzing");
-    setErrorMessage(null);
-    setCurrentStepIndex(0);
+interface ChatMessage {
+  id: string;
+  role: MessageRole;
+  text: string;
+  timestamp: Date;
+  status?: "idle" | "streaming" | "done" | "error";
+  agentSteps?: AgentStepMsg[];
+  analysis?: AnalysisResponse;
+}
 
-    // Reset steps to pending
-    const initialSteps = DEFAULT_EXECUTION_STEPS.map((s) => ({
-      ...s,
-      status: "pending" as const,
-    }));
-    setExecutionSteps(initialSteps);
+const AGENT_STEPS_LABELS = [
+  "EVENT PARSER // IDENTIFYING RISK TELEMETRY",
+  "WEATHER & SATELLITE RECONNAISSANCE",
+  "NEWS WIRE SENTIMENT SIGNAL DECOMPOSITION",
+  "VECTOR DB // HISTORICAL ANALOG EXTRACTION",
+  "LIVE MARKET FEED & TICK SYNCHRONIZATION",
+  "PORTFOLIO EXPOSURE & MONTE CARLO VALUE-AT-RISK",
+  "SYNTHESIZING ALPHA HEDGE & REBALANCE STRATEGY",
+];
+
+const SUGGESTIONS = [
+  "Category 4 Hurricane in Gulf of Mexico (Energy Portfolio)",
+  "Fed unexpected 50bps rate hike impact on tech holdings",
+  "Middle East strait disruption oil supply shock",
+  "Global semiconductor supply chain bottleneck analysis",
+];
+
+function uid() {
+  return Math.random().toString(36).slice(2);
+}
+
+export default function ChatPage() {
+  const router = useRouter();
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: "welcome",
+      role: "system",
+      text: "SENTRY QUANTITATIVE INTELLIGENCE TERMINAL ONLINE. READY FOR EVENT TELEMETRY QUERY.",
+      timestamp: new Date(),
+      status: "done",
+    },
+  ]);
+  const [input, setInput] = useState("");
+  const [mode, setMode] = useState<Mode>("demo");
+  const [isRunning, setIsRunning] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const handleSend = async (queryOverride?: string) => {
+    const q = (queryOverride ?? input).trim();
+    if (!q || isRunning) return;
+
+    setInput("");
+    setIsRunning(true);
+
+    const userMsg: ChatMessage = { id: uid(), role: "user", text: q, timestamp: new Date() };
+    const assistantId = uid();
+    const assistantMsg: ChatMessage = {
+      id: assistantId,
+      role: "assistant",
+      text: "",
+      timestamp: new Date(),
+      status: "streaming",
+      agentSteps: AGENT_STEPS_LABELS.map((label) => ({ label, status: "pending" })),
+    };
+
+    setMessages((prev) => [...prev, userMsg, assistantMsg]);
 
     try {
-      const response = await analyzeQuery(queryText, (stepIdx, updatedStep) => {
-        setCurrentStepIndex(stepIdx);
-        setExecutionSteps((prev) => {
-          const next = [...prev];
-          next[stepIdx] = updatedStep;
-          return next;
-        });
-      });
+      let stepIdx = 0;
+      for await (const update of streamAnalysis(q, "demo-energy", mode)) {
+        if (update.status === "done" && update.data) {
+          sessionStorage.setItem("sentry_analysis", JSON.stringify(update.data));
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId
+                ? {
+                    ...m,
+                    status: "done",
+                    analysis: update.data,
+                    agentSteps: AGENT_STEPS_LABELS.map((label) => ({ label, status: "done" })),
+                    text: `Analysis complete for ${update.data?.event.type}. Severity: ${update.data?.event.severity}, Risk: ${update.data?.risk?.risk_level} (${update.data?.risk?.risk_score}/100), Portfolio Impact: ${((update.data?.risk?.portfolio_impact || 0) * 100).toFixed(2)}%.`,
+                  }
+                : m
+            )
+          );
+          break;
+        }
 
-      if (response.success && response.data) {
-        setAnalysisResult(response.data);
-        // Brief pause on "ANALYSIS COMPLETE" before showing dashboard
-        await new Promise((res) => setTimeout(res, 600));
-        setAnalysisState("complete");
-      } else {
-        setErrorMessage(response.error || "Analysis pipeline execution failed.");
-        setAnalysisState("error");
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (m.id !== assistantId) return m;
+            const steps = m.agentSteps!.map((s, i) => ({
+              ...s,
+              status:
+                i < stepIdx ? ("done" as const)
+                : i === stepIdx ? ("running" as const)
+                : ("pending" as const),
+            }));
+            return { ...m, agentSteps: steps };
+          })
+        );
+        stepIdx++;
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Pipeline execution exception";
-      setErrorMessage(msg);
-      setAnalysisState("error");
+    } catch {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantId
+            ? { ...m, status: "error", text: "ERROR: Telemetry feed unreachable." }
+            : m
+        )
+      );
     }
-  };
 
-  const handleReset = () => {
-    setAnalysisState("idle");
-    setErrorMessage(null);
+    setIsRunning(false);
+    inputRef.current?.focus();
   };
 
   return (
-    <div className="min-h-screen bg-background text-terminal-text flex flex-col font-sans selection:bg-terminal-accent/20 selection:text-terminal-accent">
-      {/* 1. Terminal Top Navigation */}
-      <TerminalNav />
+    <div style={{ minHeight: "100vh", background: "var(--bg-base)", display: "flex", flexDirection: "column" }}>
+      <Navbar
+        mode={mode}
+        onModeChange={(m) => setMode(m)}
+        activeTab="RUN ANALYSIS"
+        onTabChange={(tab) => {
+          if (tab === "OVERVIEW") router.push("/dashboard");
+        }}
+      />
 
-      {/* 2. Interactive Analysis State View */}
-      <main className="flex-1">
-        {analysisState === "idle" && (
-          <section className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 space-y-8">
-            {/* Live Query Console */}
-            <AnalysisConsole
-              initialQuery={activeQuery}
-              onRunAnalysis={handleRunAnalysis}
-              isLoading={false}
-            />
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", maxWidth: 980, width: "100%", margin: "0 auto", padding: "20px 24px" }}>
+        {/* Messages feed */}
+        <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 16, marginBottom: 20 }}>
+          {messages.map((msg) => (
+            <div key={msg.id}>
+              {msg.role === "system" && (
+                <div style={{ padding: "10px 14px", background: "#080b0f", border: "1px solid var(--border-subtle)", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--term-teal)" }}>
+                  &gt; {msg.text}
+                </div>
+              )}
 
-            {/* Context Telemetry Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-terminal-border border border-terminal-border">
-              <div className="bg-[#1D1D1D] p-5 space-y-2">
-                <div className="terminal-label text-[10px]">CURRENT PORTFOLIO VALUE</div>
-                <div className="text-2xl font-bold font-mono text-terminal-text">
-                  $980,000 USD
+              {msg.role === "user" && (
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <div style={{ padding: "10px 14px", background: "#121722", border: "1px solid var(--border-mid)", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 12, color: "#fff", maxWidth: "80%" }}>
+                    <span style={{ color: "var(--term-teal)", marginRight: 6 }}>QUERY:</span> {msg.text}
+                  </div>
                 </div>
-                <div className="text-xs font-mono text-terminal-secondary">
-                  Energy 49.0% ($480.2K) · Tech 51.0% ($499.8K)
-                </div>
-              </div>
+              )}
 
-              <div className="bg-[#1D1D1D] p-5 space-y-2">
-                <div className="terminal-label text-[10px]">PIPELINE ARCHITECTURE</div>
-                <div className="text-2xl font-bold font-mono text-terminal-accent">
-                  LANGGRAPH
-                </div>
-                <div className="text-xs font-mono text-terminal-secondary">
-                  7 Autonomous Agents + Quant Risk Simulator
-                </div>
-              </div>
+              {msg.role === "assistant" && (
+                <div style={{ background: "#0c0f16", border: "1px solid var(--border-mid)", borderRadius: 2, padding: "16px 20px" }}>
+                  {msg.agentSteps && msg.status === "streaming" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+                      <div className="matrix-cell-label" style={{ marginBottom: 6 }}>SWARM EXECUTION IN PROGRESS</div>
+                      {msg.agentSteps.map((st, i) => (
+                        <div key={i} style={{ display: "flex", justifyContent: "space-between", fontFamily: "var(--font-mono)", fontSize: 11 }}>
+                          <span style={{ color: st.status === "done" ? "var(--term-teal)" : st.status === "running" ? "#fff" : "var(--text-muted)" }}>
+                            {st.label}
+                          </span>
+                          <span style={{ color: st.status === "done" ? "var(--term-teal)" : st.status === "running" ? "var(--term-amber)" : "var(--text-faint)", fontWeight: 700 }}>
+                            {st.status === "done" ? "[✓ COMPLETE]" : st.status === "running" ? "[RUNNING...]" : "[PENDING]"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
-              <div className="bg-[#1D1D1D] p-5 space-y-2">
-                <div className="terminal-label text-[10px]">EXECUTION MODE</div>
-                <div className="text-2xl font-bold font-mono text-terminal-text">
-                  DETERMINISTIC
+                  {msg.status === "done" && msg.analysis && (
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, borderBottom: "1px solid var(--border-subtle)", paddingBottom: 10 }}>
+                        <div style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color: "#fff" }}>
+                          SYNTHESIS RESULT: CATEGORY {msg.analysis.event.severity} {msg.analysis.event.type.toUpperCase()}
+                        </div>
+                        <button
+                          onClick={() => router.push("/dashboard")}
+                          className="btn-terminal-action"
+                        >
+                          [ OPEN IN DASHBOARD TERMINAL ] &gt;
+                        </button>
+                      </div>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 14 }}>
+                        <div style={{ background: "#080a0e", border: "1px solid var(--border-subtle)", padding: 10 }}>
+                          <div className="matrix-cell-label">RISK LEVEL</div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 800, color: "var(--term-red)" }}>
+                            {msg.analysis.risk.risk_level} ({msg.analysis.risk.risk_score}/100)
+                          </div>
+                        </div>
+                        <div style={{ background: "#080a0e", border: "1px solid var(--border-subtle)", padding: 10 }}>
+                          <div className="matrix-cell-label">PORTFOLIO IMPACT</div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 800, color: "var(--term-red)" }}>
+                            {(msg.analysis.risk.portfolio_impact * 100).toFixed(2)}%
+                          </div>
+                        </div>
+                        <div style={{ background: "#080a0e", border: "1px solid var(--border-subtle)", padding: 10 }}>
+                          <div className="matrix-cell-label">CONFIDENCE</div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 800, color: "var(--term-teal)" }}>
+                            {(msg.analysis.risk.confidence * 100).toFixed(0)}%
+                          </div>
+                        </div>
+                        <div style={{ background: "#080a0e", border: "1px solid var(--border-subtle)", padding: 10 }}>
+                          <div className="matrix-cell-label">STRATEGY</div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 800, color: "var(--term-amber)" }}>
+                            {msg.analysis.strategy.type}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ fontSize: 12, color: "var(--text-sub)", lineHeight: 1.6, background: "#080a0e", padding: 12, border: "1px solid var(--border-subtle)" }}>
+                        {msg.analysis.strategy.reason}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="text-xs font-mono text-terminal-secondary">
-                  Simulated multi-source grounded feeds (Demo Mode)
-                </div>
-              </div>
+              )}
             </div>
-          </section>
+          ))}
+          <div ref={bottomRef} />
+        </div>
+
+        {/* Suggestion Chips */}
+        {messages.length <= 2 && (
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+            {SUGGESTIONS.map((s) => (
+              <button
+                key={s}
+                onClick={() => handleSend(s)}
+                className="chip-terminal"
+              >
+                &gt; {s}
+              </button>
+            ))}
+          </div>
         )}
 
-        {analysisState === "analyzing" && (
-          <section className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
-            <ExecutionProgress
-              query={activeQuery}
-              steps={executionSteps}
-              currentStepIndex={currentStepIndex}
-              isComplete={currentStepIndex >= executionSteps.length - 1 && executionSteps[executionSteps.length - 1]?.status === "completed"}
-            />
-          </section>
-        )}
-
-        {analysisState === "error" && (
-          <section className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
-            <div className="bg-[#1D1D1D] border border-terminal-negative p-8 space-y-6">
-              <div className="flex items-center space-x-3">
-                <span className="px-2 py-0.5 text-xs font-mono font-bold bg-terminal-negative text-[#171717] uppercase">
-                  PIPELINE ERROR
-                </span>
-                <span className="text-sm font-mono text-terminal-negative font-semibold">
-                  Execution Terminated Unexpectedly
-                </span>
-              </div>
-
-              <p className="text-sm font-mono text-terminal-secondary">
-                {errorMessage || "An unexpected error occurred during multi-agent signal aggregation."}
-              </p>
-
-              <div className="pt-4 border-t border-terminal-border flex items-center space-x-4">
-                <button
-                  onClick={() => handleRunAnalysis(activeQuery)}
-                  className="px-4 py-2 bg-terminal-accent text-[#171717] font-mono font-bold text-xs uppercase cursor-pointer"
-                >
-                  [ RETRY ANALYSIS ]
-                </button>
-                <button
-                  onClick={handleReset}
-                  className="px-4 py-2 bg-surface border border-terminal-border text-terminal-secondary hover:text-terminal-text font-mono text-xs uppercase cursor-pointer"
-                >
-                  [ RETURN TO CONSOLE ]
-                </button>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {analysisState === "complete" && (
-          <>
-            {/* Active Query Banner */}
-            <QueryStatusBar
-              query={activeQuery}
-              onNewQuery={handleReset}
-              scenarioName={analysisResult.event.category}
-            />
-
-            {/* Render Full Populated Overview Terminal */}
-            <EventHeader
-              event={analysisResult.event}
-              weather={analysisResult.weather}
-            />
-
-            <IntelligenceStrip
-              weather={analysisResult.weather}
-              news={analysisResult.news}
-              historical={analysisResult.historical}
-              market={analysisResult.market}
-            />
-
-            <RiskOverview
-              risk={analysisResult.risk}
-              strategy={analysisResult.strategy}
-            />
-
-            <ScenarioChart scenarios={analysisResult.scenarios} />
-
-            <PortfolioExposure
-              sectors={analysisResult.portfolio.sectors}
-              topContributors={analysisResult.portfolio.top_risk_contributors}
-              totalValue={analysisResult.portfolio.total_value}
-            />
-
-            <AgentTrace trace={analysisResult.agent_trace} />
-
-            <EvidencePreview evidence={analysisResult.evidence} />
-          </>
-        )}
-      </main>
-
-      {/* 3. Technical Terminal Footer */}
-      <TerminalFooter />
+        {/* Query Input */}
+        <div style={{ background: "#0c0f16", border: "1px solid var(--border-mid)", borderRadius: 2, padding: "10px 14px", display: "flex", gap: 12, alignItems: "center" }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, color: "var(--term-teal)", fontWeight: 700 }}>&gt;</span>
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            placeholder="Input financial shock or scenario query (e.g. Category 4 Hurricane in Gulf)..."
+            rows={1}
+            disabled={isRunning}
+            style={{
+              flex: 1,
+              background: "transparent",
+              border: "none",
+              outline: "none",
+              color: "#fff",
+              fontFamily: "var(--font-mono)",
+              fontSize: 12,
+              resize: "none",
+            }}
+          />
+          <button
+            onClick={() => handleSend()}
+            disabled={!input.trim() || isRunning}
+            className="btn-terminal-action"
+          >
+            [ EXECUTE ]
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

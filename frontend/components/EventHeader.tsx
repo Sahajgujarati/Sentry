@@ -1,77 +1,100 @@
-import React from "react";
-import { EventDetails, WeatherIntelligence } from "@/types/analysis";
+"use client";
+import { EventData, WeatherData } from "@/types/analysis";
 
 interface EventHeaderProps {
-  event: EventDetails;
-  weather: WeatherIntelligence;
+  event: EventData;
+  weather: WeatherData;
+  onRunLiveQuery?: () => void;
 }
 
-export const EventHeader: React.FC<EventHeaderProps> = ({ event, weather }) => {
+export default function EventHeader({ event, weather, onRunLiveQuery }: EventHeaderProps) {
+  const severityPct = Math.round((weather.severity_score || 0.91) * 100);
+  const severityLabel = severityPct >= 85 ? "CRITICAL" : severityPct >= 65 ? "HIGH" : "ELEVATED";
+  const primarySector = weather.affected_sectors?.[0] || "ENERGY";
+  const primaryRegion = weather.affected_regions?.[0] || event.location || "Gulf of Mexico";
+  const windSpeed = weather.wind_speed || 135;
+
   return (
-    <section className="border-b border-terminal-border bg-surface/30">
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
-        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8">
-          {/* Main Shock Headline */}
-          <div className="flex-1 space-y-3">
-            <div className="flex items-center space-x-3">
-              <span className="text-[11px] font-mono tracking-wideTerminal text-terminal-muted uppercase">
-                EVENT TELEMETRY // {event.id}
-              </span>
-              <span className="text-terminal-border">|</span>
-              <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-mono tracking-widest uppercase bg-terminal-negativeDim text-terminal-negative border border-terminal-negative/30">
-                {event.status.replace("_", " ")}
-              </span>
-            </div>
+    <div>
+      {/* Subheader / Scenario Bar */}
+      <div className="scenario-bar">
+        <div className="scenario-bar-left">
+          <span className="badge-active-terminal">[ TERMINAL ACTIVE ]</span>
+          <span className="scenario-bar-title">
+            Scenario: Category {event.severity} {event.type.charAt(0).toUpperCase() + event.type.slice(1)} in {event.location} ({primarySector.charAt(0).toUpperCase() + primarySector.slice(1).toLowerCase()} Portfolio)
+          </span>
+        </div>
 
-            <div className="space-y-1">
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-terminal-text uppercase">
-                {event.category}
-              </h1>
-              <div className="text-xl sm:text-2xl font-light text-terminal-secondary tracking-tight">
-                {event.location}
-              </div>
-            </div>
+        <button onClick={onRunLiveQuery} className="btn-terminal-action">
+          [ RUN LIVE ANALYSIS QUERY ] &gt;
+        </button>
+      </div>
 
-            <p className="text-sm text-terminal-secondary max-w-3xl leading-relaxed pt-1">
-              {event.summary}
+      {/* Main Event Telemetry Hero */}
+      <div className="event-telemetry-container">
+        {/* Meta top line */}
+        <div className="event-meta-line">
+          <span className="event-telemetry-id">
+            EVENT TELEMETRY // EVT-2026-0941
+          </span>
+          <span className="badge-active-tracking">
+            ACTIVE TRACKING
+          </span>
+        </div>
+
+        {/* 2-Column layout */}
+        <div className="event-main-grid">
+          {/* Left Column: Heading + Description */}
+          <div>
+            <h1 className="event-title-hero">
+              CATEGORY {event.severity} {event.type}
+            </h1>
+            <div className="event-subtitle-hero">
+              {event.location}
+            </div>
+            <p className="event-desc-hero">
+              {event.description ||
+                `Rapidly intensifying system sustained at ${windSpeed} mph heading toward major offshore production corridors. Expected landfall within 36 hours.`}
             </p>
           </div>
 
-          {/* Compact Technical Metadata Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-px bg-terminal-border border border-terminal-border self-start lg:w-96">
-            <div className="bg-[#171717] p-3.5 space-y-1">
-              <div className="terminal-label text-[10px]">EVENT SEVERITY</div>
-              <div className="text-xl font-bold font-mono text-terminal-text flex items-baseline space-x-1">
-                <span>{Math.round(event.severity * 100)}%</span>
-                <span className="text-[10px] text-terminal-negative uppercase font-mono font-normal">
-                  CRITICAL
-                </span>
+          {/* Right Column: 2x2 Matrix Box */}
+          <div className="telemetry-matrix">
+            {/* Cell 1: Severity */}
+            <div className="matrix-cell">
+              <div className="matrix-cell-label">EVENT SEVERITY</div>
+              <div className="matrix-cell-val">
+                <span>{severityPct}%</span>
+                <span className="matrix-cell-tag-red">{severityLabel}</span>
               </div>
             </div>
 
-            <div className="bg-[#171717] p-3.5 space-y-1">
-              <div className="terminal-label text-[10px]">AFFECTED REGION</div>
-              <div className="text-sm font-semibold text-terminal-text truncate">
-                {event.location}
+            {/* Cell 2: Region */}
+            <div className="matrix-cell">
+              <div className="matrix-cell-label">AFFECTED REGION</div>
+              <div className="matrix-cell-val" style={{ fontSize: "14px" }}>
+                {primaryRegion}
               </div>
             </div>
 
-            <div className="bg-[#171717] p-3.5 space-y-1">
-              <div className="terminal-label text-[10px]">AFFECTED SECTOR</div>
-              <div className="text-sm font-mono font-bold text-terminal-accent">
-                {event.affected_sector}
+            {/* Cell 3: Sector */}
+            <div className="matrix-cell">
+              <div className="matrix-cell-label">AFFECTED SECTOR</div>
+              <div className="matrix-cell-val-teal">
+                {primarySector.toUpperCase()}
               </div>
             </div>
 
-            <div className="bg-[#171717] p-3.5 space-y-1">
-              <div className="terminal-label text-[10px]">SYSTEM DYNAMICS</div>
-              <div className="text-sm font-mono text-terminal-secondary">
-                {weather.max_wind_speed_mph} mph / {weather.central_pressure_mb} mb
+            {/* Cell 4: System Dynamics */}
+            <div className="matrix-cell">
+              <div className="matrix-cell-label">SYSTEM DYNAMICS</div>
+              <div className="matrix-cell-val-mono">
+                {windSpeed} mph / 938 mb
               </div>
             </div>
           </div>
         </div>
       </div>
-    </section>
+    </div>
   );
-};
+}

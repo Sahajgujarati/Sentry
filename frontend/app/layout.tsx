@@ -1,20 +1,22 @@
 import type { Metadata } from "next";
+import AnimatedBackground from "@/components/AnimatedBackground";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SENTRY // Financial Intelligence Terminal",
-  description:
-    "Institutional financial intelligence and quantitative portfolio risk engine for global macroeconomic and environmental disruption shocks.",
+  title: "SENTRY AI — Financial Intelligence Terminal",
+  description: "Multi-agent AI system for real-time financial event analysis, portfolio risk assessment, and intelligent strategy generation.",
+  keywords: ["financial intelligence", "portfolio risk", "AI analysis", "hurricane impact"],
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark">
-      <body className="bg-background text-terminal-text min-h-screen selection:bg-terminal-accent/20 selection:text-terminal-accent font-sans antialiased">
+    <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      </head>
+      <body>
+        <AnimatedBackground />
         {children}
       </body>
     </html>
