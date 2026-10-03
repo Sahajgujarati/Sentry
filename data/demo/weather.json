@@ -1,0 +1,13 @@
+{
+  "event_type": "hurricane",
+  "location": "Gulf of Mexico",
+  "severity": 4,
+  "severity_score": 0.91,
+  "affected_regions": [
+    "Texas",
+    "Louisiana"
+  ],
+  "affected_sectors": [
+    "Energy"
+  ]
+}

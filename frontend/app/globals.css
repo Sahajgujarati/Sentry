@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-terminal: #171717;
+  --surface-terminal: #1D1D1D;
+  --text-primary: #F2F1EB;
+  --text-secondary: #9A9A94;
+  --text-muted: #5F5F5A;
+  --accent-mint: #00E5A0;
+  --border-rule: #30302D;
+  --border-subtle: #252522;
+  --status-negative: #FF4D4D;
+  --status-positive: #00E5A0;
+  --status-warning: #F0A000;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  background-color: var(--bg-terminal);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+/* Custom scrollbar for institutional terminal feel */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #171717;
+}
+::-webkit-scrollbar-thumb {
+  background: #30302D;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #5F5F5A;
+}
+
+/* Terminal utility classes */
+.terminal-grid-border {
+  border-color: #30302D;
+}
+
+.terminal-label {
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9A9A94;
+  font-weight: 500;
+}
+
+.terminal-num-display {
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+  letter-spacing: -0.03em;
+  font-weight: 600;
+}
+
+.terminal-mono {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* Subtle pulse for live status dot only */
+@keyframes status-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.terminal-live-dot {
+  animation: status-blink 2.4s infinite ease-in-out;
+}

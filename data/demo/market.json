@@ -1,0 +1,35 @@
+{
+  "portfolio_id": "demo-energy",
+  "assets": [
+    {
+      "ticker": "XOM",
+      "quantity": 1000,
+      "current_price": 120.0,
+      "sector": "Energy"
+    },
+    {
+      "ticker": "CVX",
+      "quantity": 750,
+      "current_price": 160.0,
+      "sector": "Energy"
+    },
+    {
+      "ticker": "OXY",
+      "quantity": 1500,
+      "current_price": 55.0,
+      "sector": "Energy"
+    },
+    {
+      "ticker": "MSFT",
+      "quantity": 500,
+      "current_price": 500.0,
+      "sector": "Technology"
+    },
+    {
+      "ticker": "XLE",
+      "quantity": 800,
+      "current_price": 90.0,
+      "sector": "Energy ETF"
+    }
+  ]
+}
